@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manga Assistant - AI-Powered PDF Analysis</title>
+    
+    <!-- Bootstrap CSS from Replit theme -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts - Poppins and Comfortaa as requested -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <style>
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1030;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .main-content-wrapper {
+            margin-left: 280px;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-history-item {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .chat-history-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .chat-history-item.active {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid var(--primary);
+        }
+        
+        .chat-history-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--light-text);
+            background: var(--darker-bg);
+            margin-right: 12px;
+        }
+        
+        /* For mobile */
+        @media (max-width: 991px) {
+            .sidebar {
+                width: 0;
+                opacity: 0;
+            }
+            
+            .sidebar.show {
+                width: 280px;
+                opacity: 1;
+            }
+            
+            .main-content-wrapper {
+                margin-left: 0;
+            }
+        }
+        
+        /* Fix for navbar in sidebar layout */
+        .navbar {
+            z-index: 1020;
+        }
+        
+        /* Gemini-style file upload in chat */
+        .file-upload-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            color: var(--muted-text);
+            margin-right: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .file-upload-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--primary-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- Left sidebar (Gemini style) -->
+    <div class="sidebar glass p-0">
+        <div class="d-flex flex-column h-100">
+            <!-- Sidebar header -->
+            <div class="p-3 mb-2 border-bottom" style="border-color: rgba(255,255,255,0.05) !important;">
+                <a class="d-flex align-items-center text-decoration-none" href="/">
+                    <div class="brand-icon me-2">
+                        <i class="fas fa-brain" style="font-size: 1.5rem; color: var(--primary); filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));"></i>
+                    </div>
+                    <div>
+                        <span style="font-weight: 600; letter-spacing: -0.25px; font-size: 20px; background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Manga Assistant</span>
+                    </div>
+                </a>
+            </div>
+            
+            <!-- New chat button -->
+            <div class="px-3 mb-3">
+                <button class="btn btn-primary w-100" id="new-chat-btn">
+                    <i class="fas fa-plus me-2"></i> New chat
+                </button>
+            </div>
+            
+            <!-- Chat history -->
+            <div class="flex-grow-1 sidebar-content px-3 overflow-auto" style="max-height: calc(100vh - 200px);">
+                <h6 class="text-uppercase text-muted mb-3 fs-6" style="font-size: 12px !important; letter-spacing: 1px;">Chat History</h6>
+                <div id="chat-history">
+                    <div class="chat-history-item active d-flex align-items-center">
+                        <div class="chat-history-icon">
+                            <i class="fas fa-comment-dots"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-truncate" style="font-weight: 500;">Manga Analysis</div>
+                            <div class="text-truncate" style="font-size: 12px; color: var(--muted-text);">Understanding character development</div>
+                        </div>
+                    </div>
+                    <div class="chat-history-item d-flex align-items-center">
+                        <div class="chat-history-icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-truncate" style="font-weight: 500;">Manga Creation Guide</div>
+                            <div class="text-truncate" style="font-size: 12px; color: var(--muted-text);">PDF Analysis & Summary</div>
+                        </div>
+                    </div>
+                    <div class="chat-history-item d-flex align-items-center">
+                        <div class="chat-history-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-truncate" style="font-weight: 500;">Character Design</div>
+                            <div class="text-truncate" style="font-size: 12px; color: var(--muted-text);">Tips for creating manga characters</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar footer -->
+            <div class="mt-auto p-3 border-top" style="border-color: rgba(255,255,255,0.05) !important;">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-secondary btn-sm text-start" id="settings-btn" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                        <i class="fas fa-cog me-2"></i> Settings
+                    </button>
+                    <button class="btn btn-secondary btn-sm text-start" data-bs-toggle="modal" data-bs-target="#aboutModal">
+                        <i class="fas fa-info-circle me-2"></i> About
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main content wrapper -->
+    <div class="main-content-wrapper">
+        <!-- Navbar for mobile with sidebar toggle and sign in -->
+        <nav class="navbar navbar-expand-lg glass" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding: 15px 0;">
+            <div class="container-fluid px-4">
+                <!-- Mobile sidebar toggle -->
+                <button class="btn btn-sm btn-secondary d-lg-none me-2" id="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <!-- Brand for mobile only -->
+                <a class="navbar-brand d-lg-none d-flex align-items-center" href="/">
+                    <div class="brand-icon me-2">
+                        <i class="fas fa-brain" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    </div>
+                    <span style="font-weight: 600; font-size: 18px; background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Manga Assistant</span>
+                </a>
+                
+                <div class="ms-auto d-flex align-items-center">
+                    <!-- Sign in button -->
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
+                        <i class="fas fa-sign-in-alt me-2"></i> Sign in
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main content area -->
+        <div class="container-fluid main-content py-4 px-4">
+            <!-- Alert container for notifications -->
+            <div id="alert-container"></div>
+            
+            <!-- Modern elegant welcome section -->
+            <div class="row mb-5 justify-content-center">
+                <div class="col-lg-8 text-center">
+                    <h1 class="mb-3" style="font-weight: 700; letter-spacing: -0.5px; font-size: 38px; background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Manga Assistant
+                    </h1>
+                    <p class="lead mb-0" style="max-width: 650px; margin: 0 auto; font-weight: 400; font-size: 1.1rem; color: var(--muted-text);">
+                        Your intelligent companion for manga and PDF documents, powered by Google's Gemini AI.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Beautiful gradient orbs in background -->
+            <div class="position-absolute top-50 start-25 translate-middle" style="width: 300px; height: 300px; background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%); border-radius: 50%; filter: blur(50px); z-index: -1; animation: pulse 8s infinite alternate;"></div>
+            <div class="position-absolute top-75 start-75 translate-middle" style="width: 250px; height: 250px; background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0) 70%); border-radius: 50%; filter: blur(50px); z-index: -1; animation: pulse 12s infinite alternate-reverse;"></div>
+            
+            <!-- PDF Upload Section -->
+            <div class="row justify-content-center mb-4">
+                <div class="col-lg-8">
+                    <div id="upload-area" class="upload-area glass">
+                        <div class="mb-4">
+                            <i class="fas fa-file-upload upload-icon"></i>
+                        </div>
+                        <h4 id="drag-text" style="font-weight: 500; letter-spacing: -0.25px; margin-bottom: 1.5rem; color: var(--light-text);">Upload any file to analyze</h4>
+                        <p style="color: var(--muted-text); margin-bottom: 1.5rem;">Drag & drop your file here or</p>
+                        <form id="upload-form">
+                            <div class="mb-3">
+                                <input class="form-control" type="file" id="pdf-file" hidden>
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('pdf-file').click()">
+                                    <i class="fas fa-file-arrow-up me-2"></i> Browse files
+                                </button>
+                            </div>
+                            <button type="submit" id="upload-button" class="btn btn-secondary">
+                                <span id="upload-spinner" class="spinner d-none"></span>
+                                <i class="fas fa-cloud-arrow-up me-2"></i> Upload Document
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- PDF Preview Section (initially hidden) -->
+                    <div id="pdf-preview-container" class="d-none">
+                        <div class="pdf-info">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 style="color: var(--light-text); font-weight: 500;">
+                                    <i class="fas fa-file-pdf me-2" style="color: var(--primary);"></i> 
+                                    <span id="pdf-filename">document.pdf</span>
+                                </h4>
+                                <button id="upload-another-btn" class="btn btn-sm btn-secondary btn-circle" title="Upload another file">
+                                    <i class="fas fa-cloud-arrow-up"></i>
+                                </button>
+                            </div>
+                            <div class="glass p-3 rounded-3" style="border: 1px solid rgba(255, 255, 255, 0.05);">
+                                <h5 style="color: var(--primary-light); font-weight: 500; margin-bottom: 12px;">
+                                    <i class="fas fa-align-left me-2"></i> Text Preview:
+                                </h5>
+                                <p id="pdf-preview" class="mb-0 text-truncate" style="color: var(--muted-text);"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ask Question Section (initially hidden) -->
+            <div id="ask-container" class="row justify-content-center mb-4 d-none">
+                <div class="col-lg-8">
+                    <div class="chat-container mb-3" id="chat-container">
+                        <!-- Chat messages will be dynamically added here -->
+                    </div>
+                    
+                    <!-- Input with file upload button (Gemini style) -->
+                    <div class="input-group">
+                        <button class="file-upload-btn" id="file-upload-btn" title="Upload file">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <textarea id="question-input" class="form-control" placeholder="Ask a question about manga, PDFs, or anything else..." rows="1"></textarea>
+                        <button id="ask-button" class="btn btn-primary btn-circle btn-lg ms-2" style="border-radius: 50% !important; width: 48px !important; height: 48px !important; padding: 0; aspect-ratio: 1;">
+                            <span id="ask-spinner" class="spinner d-none"></span>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="form-text" style="color: var(--muted-text); font-size: 12px; margin-top: 8px; text-align: center;">
+                        <i class="fas fa-keyboard me-1"></i> Press Enter to send your question
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Beautiful modern footer with glass effect -->
+    <footer class="py-4 mt-4 glass" style="border-top: 1px solid rgba(255,255,255,0.05);">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div style="color: var(--muted-text); font-size: 14px;">
+                    &copy; 2025 Manga Assistant
+                </div>
+                <div style="font-size: 14px;">
+                    <span style="background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 500;">Powered by Google Gemini</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- About Modal with beautiful glass effect -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass" style="border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);">
+                <div class="modal-header border-bottom" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <h5 class="modal-title" id="aboutModalLabel" style="background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">About Manga Assistant</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="me-3">
+                            <i class="fas fa-robot" style="font-size: 2.5rem; color: var(--primary); filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));"></i>
+                        </div>
+                        <div>
+                            <h5 style="color: var(--primary-light); font-weight: 600; margin-bottom: 5px;">What is Manga Assistant?</h5>
+                            <p style="color: var(--muted-text);">An intelligent AI-powered tool designed to help you extract and analyze information from manga and PDF documents.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 style="color: var(--primary-light); font-weight: 600;"><i class="fas fa-cogs me-2"></i> How it works:</h5>
+                        <div class="ps-3 mt-3">
+                            <div class="d-flex mb-3">
+                                <div class="btn btn-sm btn-primary btn-circle me-3 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">1</div>
+                                <div>Upload your manga or PDF document</div>
+                            </div>
+                            <div class="d-flex mb-3">
+                                <div class="btn btn-sm btn-primary btn-circle me-3 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">2</div>
+                                <div>Wait for the AI to process the content</div>
+                            </div>
+                            <div class="d-flex mb-3">
+                                <div class="btn btn-sm btn-primary btn-circle me-3 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">3</div>
+                                <div>Ask questions about the content</div>
+                            </div>
+                            <div class="d-flex">
+                                <div class="btn btn-sm btn-primary btn-circle me-3 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">4</div>
+                                <div>Receive intelligent, context-aware answers</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h5 style="color: var(--primary-light); font-weight: 600;"><i class="fas fa-sparkles me-2"></i> Features:</h5>
+                        <div class="row mt-3 g-3">
+                            <div class="col-6">
+                                <div class="glass p-3 rounded-3 h-100" style="border: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <i class="fas fa-file-pdf mb-2" style="color: var(--primary);"></i>
+                                    <div style="font-weight: 500;">PDF Text Extraction</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="glass p-3 rounded-3 h-100" style="border: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <i class="fas fa-brain mb-2" style="color: var(--secondary);"></i>
+                                    <div style="font-weight: 500;">Natural Language Understanding</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="glass p-3 rounded-3 h-100" style="border: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <i class="fas fa-comment-dots mb-2" style="color: var(--primary);"></i>
+                                    <div style="font-weight: 500;">Context-Aware Answers</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="glass p-3 rounded-3 h-100" style="border: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <i class="fas fa-lightbulb mb-2" style="color: var(--secondary);"></i>
+                                    <div style="font-weight: 500;">Beyond-Document Knowledge</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        <i class="fas fa-check me-2"></i> Got it
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sign In Modal -->
+    <div class="modal fade" id="signInModal" tabindex="-1" aria-labelledby="signInModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass" style="border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);">
+                <div class="modal-header border-bottom" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <h5 class="modal-title" id="signInModalLabel" style="background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Sign In</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="login-form">
+                        <div class="mb-3">
+                            <label for="email" class="form-label" style="color: var(--light-text);">Email address</label>
+                            <input type="email" class="form-control bg-dark text-light border-dark" id="email" placeholder="name@example.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label" style="color: var(--light-text);">Password</label>
+                            <input type="password" class="form-control bg-dark text-light border-dark" id="password" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" value="" id="remember-me">
+                            <label class="form-check-label" for="remember-me" style="color: var(--muted-text);">
+                                Remember me
+                            </label>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i> Sign In
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <p style="color: var(--muted-text);">Don't have an account?</p>
+                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#signUpModal">
+                            Sign up now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sign Up Modal -->
+    <div class="modal fade" id="signUpModal" tabindex="-1" aria-labelledby="signUpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass" style="border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);">
+                <div class="modal-header border-bottom" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <h5 class="modal-title" id="signUpModalLabel" style="background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Create an Account</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="signup-form">
+                        <div class="mb-3">
+                            <label for="signup-username" class="form-label" style="color: var(--light-text);">Username</label>
+                            <input type="text" class="form-control bg-dark text-light border-dark" id="signup-username" placeholder="Choose a username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="signup-email" class="form-label" style="color: var(--light-text);">Email address</label>
+                            <input type="email" class="form-control bg-dark text-light border-dark" id="signup-email" placeholder="name@example.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="signup-password" class="form-label" style="color: var(--light-text);">Password</label>
+                            <input type="password" class="form-control bg-dark text-light border-dark" id="signup-password" placeholder="Create a password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="signup-confirm-password" class="form-label" style="color: var(--light-text);">Confirm Password</label>
+                            <input type="password" class="form-control bg-dark text-light border-dark" id="signup-confirm-password" placeholder="Confirm your password" required>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" value="" id="terms-check" required>
+                            <label class="form-check-label" for="terms-check" style="color: var(--muted-text);">
+                                I agree to the <a href="#" style="color: var(--primary);">Terms of Service</a> and <a href="#" style="color: var(--primary);">Privacy Policy</a>
+                            </label>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-user-plus me-2"></i> Create Account
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <p style="color: var(--muted-text);">Already have an account?</p>
+                        <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#signInModal">
+                            Sign in instead
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass" style="border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);">
+                <div class="modal-header border-bottom" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <h5 class="modal-title" id="settingsModalLabel" style="background: var(--main-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Settings</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <h6 style="color: var(--primary-light); font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-palette me-2"></i> Appearance
+                        </h6>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="darkModeSwitch" checked disabled>
+                            <label class="form-check-label" for="darkModeSwitch" style="color: var(--light-text);">
+                                Dark mode
+                            </label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label" style="color: var(--light-text);">Font size</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="color: var(--muted-text); font-size: 0.8rem;">A</span>
+                                <input type="range" class="form-range" id="fontSizeRange" min="0.8" max="1.2" step="0.1" value="1">
+                                <span style="color: var(--muted-text); font-size: 1.2rem;">A</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6 style="color: var(--primary-light); font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-robot me-2"></i> AI Model Preferences
+                        </h6>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="aiModelRadio" id="geminiModel" checked>
+                            <label class="form-check-label" for="geminiModel" style="color: var(--light-text);">
+                                Google Gemini (Default)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="aiModelRadio" id="openAiModel">
+                            <label class="form-check-label" for="openAiModel" style="color: var(--light-text);">
+                                OpenAI (Requires API Key)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h6 style="color: var(--primary-light); font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-sliders-h me-2"></i> PDF Processing
+                        </h6>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="ocrSwitch">
+                            <label class="form-check-label" for="ocrSwitch" style="color: var(--light-text);">
+                                Use OCR for scanned documents
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxPagesInput" class="form-label" style="color: var(--light-text);">Maximum pages to process</label>
+                            <input type="number" class="form-control bg-dark text-light border-dark" id="maxPagesInput" value="20" min="1" max="100">
+                            <div class="form-text" style="color: var(--muted-text);">Higher values may take longer to process</div>
+                        </div>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer border-top" style="border-color: rgba(255, 255, 255, 0.05) !important;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="save-settings-btn">
+                        <i class="fas fa-save me-2"></i> Save changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pdf.js') }}"></script>
+    
+    <!-- Sidebar JS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile sidebar toggle
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content-wrapper');
+            
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                    
+                    // Add click outside to close
+                    if (sidebar.classList.contains('show')) {
+                        setTimeout(() => {
+                            document.addEventListener('click', closeSidebarOnClickOutside);
+                        }, 100);
+                    }
+                });
+            }
+            
+            // Function to close sidebar when clicking outside
+            function closeSidebarOnClickOutside(e) {
+                // If we click outside the sidebar
+                if (!sidebar.contains(e.target) && e.target !== sidebarToggle) {
+                    sidebar.classList.remove('show');
+                    document.removeEventListener('click', closeSidebarOnClickOutside);
+                }
+            }
+            
+            // Handle new chat button
+            const newChatBtn = document.getElementById('new-chat-btn');
+            if (newChatBtn) {
+                newChatBtn.addEventListener('click', function() {
+                    // Reset the chat interface
+                    const chatContainer = document.getElementById('chat-container');
+                    if (chatContainer) {
+                        chatContainer.innerHTML = '';
+                    }
+                    
+                    // Show upload area if hidden
+                    const uploadArea = document.getElementById('upload-area');
+                    const askContainer = document.getElementById('ask-container');
+                    
+                    if (uploadArea && uploadArea.parentElement.classList.contains('d-none')) {
+                        uploadArea.parentElement.classList.remove('d-none');
+                    }
+                    
+                    if (askContainer && !askContainer.classList.contains('d-none')) {
+                        askContainer.classList.add('d-none');
+                    }
+                });
+            }
+            
+            // File upload from chat
+            const fileUploadBtn = document.getElementById('file-upload-btn');
+            if (fileUploadBtn) {
+                fileUploadBtn.addEventListener('click', function() {
+                    // Trigger the main PDF file upload input
+                    document.getElementById('pdf-file').click();
+                });
+            }
+            
+            // History item click
+            const historyItems = document.querySelectorAll('.chat-history-item');
+            historyItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove active class from all items
+                    historyItems.forEach(i => i.classList.remove('active'));
+                    // Add active class to clicked item
+                    this.classList.add('active');
+                    
+                    // Here you would load the selected chat history
+                    // For now we'll just show a demo message
+                    const chatContainer = document.getElementById('chat-container');
+                    if (chatContainer) {
+                        // Show the chat container if hidden
+                        const askContainer = document.getElementById('ask-container');
+                        if (askContainer.classList.contains('d-none')) {
+                            askContainer.classList.remove('d-none');
+                        }
+                        
+                        // Hide the upload area
+                        const uploadAreaParent = document.getElementById('upload-area').parentElement;
+                        if (!uploadAreaParent.classList.contains('d-none')) {
+                            uploadAreaParent.classList.add('d-none');
+                        }
+                    }
+                });
+            });
+            
+            // Handle login form submission
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Get form values
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    const rememberMe = document.getElementById('remember-me').checked;
+                    
+                    // Show success alert (in a real app, this would be after API validation)
+                    const signInModal = bootstrap.Modal.getInstance(document.getElementById('signInModal'));
+                    signInModal.hide();
+                    
+                    // Update UI to show logged in state
+                    const signInButton = document.querySelector('.btn.btn-primary i.fas.fa-sign-in-alt').parentElement;
+                    signInButton.innerHTML = `<i class="fas fa-user-circle me-2"></i> ${email.split('@')[0]}`;
+                    
+                    // Show success message
+                    showAlert('Successfully signed in! Welcome back.', 'success');
+                });
+            }
+            
+            // Handle signup form submission
+            const signupForm = document.getElementById('signup-form');
+            if (signupForm) {
+                signupForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Get form values
+                    const username = document.getElementById('signup-username').value;
+                    const email = document.getElementById('signup-email').value;
+                    const password = document.getElementById('signup-password').value;
+                    const confirmPassword = document.getElementById('signup-confirm-password').value;
+                    
+                    // Validate passwords match
+                    if (password !== confirmPassword) {
+                        showAlert('Passwords do not match!', 'danger');
+                        return;
+                    }
+                    
+                    // Show success alert (in a real app, this would be after API validation)
+                    const signUpModal = bootstrap.Modal.getInstance(document.getElementById('signUpModal'));
+                    signUpModal.hide();
+                    
+                    // Show success message
+                    showAlert('Account created successfully! You are now signed in.', 'success');
+                    
+                    // Update UI to show logged in state
+                    const signInButton = document.querySelector('.btn.btn-primary i.fas.fa-sign-in-alt').parentElement;
+                    signInButton.innerHTML = `<i class="fas fa-user-circle me-2"></i> ${username}`;
+                });
+            }
+            
+            // Handle settings form submission
+            const saveSettingsBtn = document.getElementById('save-settings-btn');
+            if (saveSettingsBtn) {
+                saveSettingsBtn.addEventListener('click', function() {
+                    // Get settings values
+                    const fontSize = document.getElementById('fontSizeRange').value;
+                    const aiModel = document.getElementById('geminiModel').checked ? 'gemini' : 'openai';
+                    const useOcr = document.getElementById('ocrSwitch').checked;
+                    const maxPages = document.getElementById('maxPagesInput').value;
+                    
+                    // Apply font size change immediately
+                    document.documentElement.style.setProperty('--font-size-multiplier', fontSize);
+                    
+                    // Hide modal
+                    const settingsModal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
+                    settingsModal.hide();
+                    
+                    // Show success message
+                    showAlert('Settings saved successfully!', 'success');
+                });
+            }
+            
+            // Initialize font size control
+            const fontSizeRange = document.getElementById('fontSizeRange');
+            if (fontSizeRange) {
+                fontSizeRange.addEventListener('input', function() {
+                    document.documentElement.style.setProperty('--font-size-multiplier', this.value);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
